@@ -23,9 +23,7 @@ def increase_download_count():
         json.dump(data, f)
 
 def cleanup_download_folder(age_seconds=300):
-    """
-    يحذف الملفات في مجلد التنزيل التي أقدم من age_seconds (مثلاً 300 ثانية = 5 دقائق)
-    """
+    """يحذف الملفات الأقدم من 5 دقائق"""
     while True:
         now = time.time()
         for filename in os.listdir(DOWNLOAD_FOLDER):
@@ -38,9 +36,9 @@ def cleanup_download_folder(age_seconds=300):
                         print(f"Deleted old file: {filepath}")
                     except Exception as e:
                         print(f"Error deleting file {filepath}: {e}")
-        time.sleep(60)  # تحقق كل دقيقة
+        time.sleep(60)
 
-# تشغيل التنظيف في ثريد منفصل عند بداية تشغيل السيرفر
+# بدء تشغيل التنظيف في خلفية البرنامج
 cleanup_thread = threading.Thread(target=cleanup_download_folder, daemon=True)
 cleanup_thread.start()
 
@@ -84,6 +82,15 @@ def index():
 @app.route("/download/<path:filename>")
 def download_file(filename):
     return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
+
+# 🔽 إضافة خدمة ملفات السيو
+@app.route('/robots.txt')
+def robots():
+    return send_from_directory('.', 'robots.txt')
+
+@app.route('/sitemap.xml')
+def sitemap():
+    return send_from_directory('.', 'sitemap.xml')
 
 if __name__ == "__main__":
     app.run(debug=True)
