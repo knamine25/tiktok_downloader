@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: tiktok-downloader
+    env: python
+    buildCommand: ""
+    startCommand: "gunicorn flask_app:app"
+    envVars:
+      - key: FLASK_ENV
+        value: production
