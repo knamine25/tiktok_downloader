@@ -3,49 +3,41 @@ import os
 import yt_dlp
 import threading
 import time
-import sqlite3
 
 app = Flask(__name__)
 DOWNLOAD_FOLDER = "downloads"
-DB_FILE = "downloads.db"
+COUNT_FILE = "download_count.txt"
 
-# إنشاء مجلد التنزيلات إذا لم يكن موجودًا
+# إنشاء المجلد وملف العد إذا لم يكن موجودًا
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+if not os.path.exists(COUNT_FILE):
+    with open(COUNT_FILE, "w") as f:
+        f.write("0")  # نبدأ العد من صفر
 
-# تهيئة قاعدة البيانات وإنشاء جدول العداد إذا لم يكن موجودًا
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS counter (
-            id INTEGER PRIMARY KEY,
-            total_downloads INTEGER NOT NULL
-        )
-    ''')
-    # إدخال صف عداد واحد إذا غير موجود
-    c.execute('INSERT OR IGNORE INTO counter (id, total_downloads) VALUES (1, 0)')
-    conn.commit()
-    conn.close()
-
-# زيادة عدد التنزيلات في قاعدة البيانات
 def increase_download_count():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('UPDATE counter SET total_downloads = total_downloads + 1 WHERE id = 1')
-    conn.commit()
-    conn.close()
+    try:
+        # نقرأ الرقم الحالي
+        with open(COUNT_FILE, "r") as f:
+            count = f.read()
+            count = int(count.strip()) if count.strip().isdigit() else 0
+    except Exception:
+        count = 0
 
-# قراءة عدد التنزيلات من قاعدة البيانات
+    count += 1  # نزود العدد
+
+    # نكتب العدد الجديد
+    with open(COUNT_FILE, "w") as f:
+        f.write(str(count))
+
 def get_download_count():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('SELECT total_downloads FROM counter WHERE id = 1')
-    result = c.fetchone()
-    conn.close()
-    return result[0] if result else 0
+    try:
+        with open(COUNT_FILE, "r") as f:
+            count = f.read()
+            return int(count.strip()) if count.strip().isdigit() else 0
+    except Exception:
+        return 0
 
 def cleanup_download_folder(age_seconds=300):
-    """يحذف الملفات الأقدم من 5 دقائق"""
     while True:
         now = time.time()
         for filename in os.listdir(DOWNLOAD_FOLDER):
@@ -60,10 +52,6 @@ def cleanup_download_folder(age_seconds=300):
                         print(f"Error deleting file {filepath}: {e}")
         time.sleep(60)
 
-# تهيئة قاعدة البيانات قبل بدء السيرفر
-init_db()
-
-# بدء تشغيل التنظيف في خلفية البرنامج
 cleanup_thread = threading.Thread(target=cleanup_download_folder, daemon=True)
 cleanup_thread.start()
 
@@ -74,7 +62,7 @@ def index():
     total_downloads = get_download_count()
 
     if request.method == "POST":
-        url = request.form.get("tiktok_url", "").strip()
+        url = request.form.get("tiktok_url").strip()
         if not url:
             error = "Please enter a TikTok video URL."
         else:
@@ -103,7 +91,6 @@ def index():
 def download_file(filename):
     return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
 
-# ملفات السيو
 @app.route('/robots.txt')
 def robots():
     return send_from_directory('.', 'robots.txt')
