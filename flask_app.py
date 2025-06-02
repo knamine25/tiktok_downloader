@@ -15,12 +15,21 @@ if not os.path.exists(COUNT_FILE):
     with open(COUNT_FILE, "w") as f:
         json.dump({"total_downloads": 0}, f)
 
+# قفل لمنع تعارض القراءة والكتابة على ملف العد
+count_lock = threading.Lock()
+
 def increase_download_count():
-    with open(COUNT_FILE, "r") as f:
-        data = json.load(f)
-    data["total_downloads"] += 1
-    with open(COUNT_FILE, "w") as f:
-        json.dump(data, f)
+    with count_lock:
+        try:
+            with open(COUNT_FILE, "r") as f:
+                data = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            data = {"total_downloads": 0}
+
+        data["total_downloads"] = data.get("total_downloads", 0) + 1
+
+        with open(COUNT_FILE, "w") as f:
+            json.dump(data, f)
 
 def cleanup_download_folder(age_seconds=300):
     """يحذف الملفات الأقدم من 5 دقائق"""
@@ -48,8 +57,13 @@ def index():
     filename = ""
     total_downloads = 0
 
-    with open(COUNT_FILE, "r") as f:
-        total_downloads = json.load(f)["total_downloads"]
+    # قراءة عدد التحميلات مع قفل لمنع تعارض في حالة وجود طلبات كثيرة
+    with count_lock:
+        try:
+            with open(COUNT_FILE, "r") as f:
+                total_downloads = json.load(f).get("total_downloads", 0)
+        except (FileNotFoundError, json.JSONDecodeError):
+            total_downloads = 0
 
     if request.method == "POST":
         url = request.form.get("tiktok_url").strip()
@@ -71,8 +85,10 @@ def index():
 
                 increase_download_count()
 
-                with open(COUNT_FILE, "r") as f:
-                    total_downloads = json.load(f)["total_downloads"]
+                # إعادة قراءة عدد التحميلات بعد التحديث
+                with count_lock:
+                    with open(COUNT_FILE, "r") as f:
+                        total_downloads = json.load(f).get("total_downloads", 0)
 
             except Exception as e:
                 error = f"Download failed: {str(e)}"
@@ -83,7 +99,7 @@ def index():
 def download_file(filename):
     return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
 
-# 🔽 إضافة خدمة ملفات السيو
+# إضافة خدمة ملفات السيو
 @app.route('/robots.txt')
 def robots():
     return send_from_directory('.', 'robots.txt')
