@@ -3,12 +3,13 @@ import os
 import yt_dlp
 import threading
 import time
-from download_counter import get_download_count, increase_download_count
 
 app = Flask(__name__)
 DOWNLOAD_FOLDER = "downloads"
-
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+
+# Global in-memory counter
+download_counter = 0
 
 def cleanup_download_folder(age_seconds=300):
     while True:
@@ -30,9 +31,9 @@ cleanup_thread.start()
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    global download_counter
     error = ""
     filename = ""
-    total_downloads = get_download_count()
 
     if request.method == "POST":
         url = request.form.get("tiktok_url", "").strip()
@@ -52,24 +53,23 @@ def index():
                     ext = info.get('ext', 'mp4')
                     filename = f"{video_id}.{ext}"
 
-                # زيادة العداد بعد التحميل بنجاح
-                increase_download_count()
-                total_downloads = get_download_count()
+                # Increase the in-memory counter
+                download_counter += 1
 
             except Exception as e:
                 error = f"Download failed: {str(e)}"
 
-    return render_template("index.html", error=error, filepath=filename, total=total_downloads)
+    return render_template("index.html", error=error, filepath=filename, total=download_counter)
 
 @app.route("/download/<path:filename>")
 def download_file(filename):
     return send_from_directory(DOWNLOAD_FOLDER, filename, as_attachment=True)
 
-# API لزيادة العد فقط عند الضغط على زر التحميل (يمكن استعماله مع جافاسكريبت)
 @app.route("/increase_download", methods=["POST"])
 def increase_download():
-    new_total = increase_download_count()
-    return jsonify({"total": new_total})
+    global download_counter
+    download_counter += 1
+    return jsonify({"total": download_counter})
 
 @app.route('/robots.txt')
 def robots():
