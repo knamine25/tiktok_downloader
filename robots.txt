@@ -1,0 +1,4 @@
+User-agent: *
+Disallow:
+
+Sitemap: https://tiktok-downloader-a20p.onrender.com/sitemap.xml
