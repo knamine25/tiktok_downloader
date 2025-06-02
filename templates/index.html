@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8" />
 <title>TikTok Video Downloader</title>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-DY92M2N44X"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-DY92M2N44X');
+</script>
+
 <style>
     body {
         font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -51,7 +61,6 @@
         color: #764ba2;
         text-decoration: none;
     }
-    /* دائرة التحميل (spinner) */
     .spinner {
         margin: 20px auto;
         border: 6px solid #f3f3f3;
@@ -60,7 +69,7 @@
         width: 40px;
         height: 40px;
         animation: spin 1s linear infinite;
-        display: none; /* مخفية افتراضياً */
+        display: none;
     }
     @keyframes spin {
         0% { transform: rotate(0deg); }
@@ -82,7 +91,6 @@
             <button type="submit" id="submitBtn">Download Video</button>
         </form>
 
-        <!-- دائرة التحميل والنص -->
         <div class="spinner" id="spinner"></div>
         <div id="loading-text">Please wait, downloading...</div>
 
@@ -105,31 +113,20 @@
     const submitBtn = document.getElementById('submitBtn');
 
     form.addEventListener('submit', () => {
-        // إظهار دائرة التحميل والنص
         spinner.style.display = 'block';
         loadingText.style.display = 'block';
-
-        // إخفاء زر الإرسال والرابط (إن وجد)
         submitBtn.disabled = true;
         if (downloadLink) {
             downloadLink.style.display = 'none';
         }
     });
 
-    // لو في رابط تحميل (بعد إعادة تحميل الصفحة) نبدأ التحميل تلقائياً
     window.onload = () => {
         if (downloadLink) {
-            // إخفاء دائرة التحميل والنص لأن التحميل انتهى
             spinner.style.display = 'none';
             loadingText.style.display = 'none';
-
-            // إظهار رابط التحميل
             downloadLink.style.display = 'inline-block';
-
-            // بدء التحميل تلقائياً
             downloadLink.click();
-
-            // تفعيل زر الإرسال
             submitBtn.disabled = false;
         }
     }
