@@ -3,41 +3,25 @@ import os
 import yt_dlp
 import threading
 import time
+import requests
 
 app = Flask(__name__)
 DOWNLOAD_FOLDER = "downloads"
-COUNT_FILE = "download_count.txt"
 
-# إنشاء المجلد وملف العد إذا لم يكن موجودًا
+# رابط Google Apps Script
+GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxdf5P-F1nTmDx63V3zyOddTUjR60dpBivsNwT--hFxZy1LyXeXY2f8jOP1_hDiNAZyog/exec"
+
+# إنشاء مجلد التنزيلات إذا لم يكن موجودًا
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
-if not os.path.exists(COUNT_FILE):
-    with open(COUNT_FILE, "w") as f:
-        f.write("0")  # نبدأ العد من صفر
 
 def increase_download_count():
     try:
-        # نقرأ الرقم الحالي
-        with open(COUNT_FILE, "r") as f:
-            count = f.read()
-            count = int(count.strip()) if count.strip().isdigit() else 0
-    except Exception:
-        count = 0
-
-    count += 1  # نزود العدد
-
-    # نكتب العدد الجديد
-    with open(COUNT_FILE, "w") as f:
-        f.write(str(count))
-
-def get_download_count():
-    try:
-        with open(COUNT_FILE, "r") as f:
-            count = f.read()
-            return int(count.strip()) if count.strip().isdigit() else 0
-    except Exception:
-        return 0
+        requests.post(GOOGLE_SCRIPT_URL)
+    except Exception as e:
+        print(f"فشل في تحديث Google Sheet: {e}")
 
 def cleanup_download_folder(age_seconds=300):
+    """يحذف الملفات الأقدم من 5 دقائق"""
     while True:
         now = time.time()
         for filename in os.listdir(DOWNLOAD_FOLDER):
@@ -52,6 +36,7 @@ def cleanup_download_folder(age_seconds=300):
                         print(f"Error deleting file {filepath}: {e}")
         time.sleep(60)
 
+# تشغيل تنظيف الملفات في الخلفية
 cleanup_thread = threading.Thread(target=cleanup_download_folder, daemon=True)
 cleanup_thread.start()
 
@@ -59,7 +44,6 @@ cleanup_thread.start()
 def index():
     error = ""
     filename = ""
-    total_downloads = get_download_count()
 
     if request.method == "POST":
         url = request.form.get("tiktok_url").strip()
@@ -79,13 +63,13 @@ def index():
                     ext = info.get('ext', 'mp4')
                     filename = f"{video_id}.{ext}"
 
+                # زيادة العداد في Google Sheet
                 increase_download_count()
-                total_downloads = get_download_count()
 
             except Exception as e:
                 error = f"Download failed: {str(e)}"
 
-    return render_template("index.html", error=error, filepath=filename, total=total_downloads)
+    return render_template("index.html", error=error, filepath=filename)
 
 @app.route("/download/<path:filename>")
 def download_file(filename):
